@@ -1,4 +1,4 @@
-/.bsp
-/.idea
-/project/target
-/target
+/.bsp/
+/.idea/
+/project/target/
+/target/
