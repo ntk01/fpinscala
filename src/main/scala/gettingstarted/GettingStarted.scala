@@ -26,4 +26,22 @@ object GettingStarted extends App {
   println(isSorted(Array("bird", "dog", "mouse"), (a: String, b: String) => a > b))
   println(isSorted(Array(4, 7, 2), (a: Int, b: Int) => a > b))
 
+  def curry[A, B, C](f: (A, B) => C): A => (B => C) =
+    a => b => f(a, b)
+
+  def curry2[A, B, C, D](f: (A, B, C) => D): A => B => C => D =
+    a => b => c => f(a, b, c)
+
+  def uncurry[A, B, C](f: A => B => C): (A, B) => C =
+    (a, b) => f(a)(b)
+
+  def uncurry2[A, B, C, D](f: A => B => C => D): (A, B, C) => D =
+    (a, b, c) => f(a)(b)(c)
+
+  def compose[A, B, C](f: B => C, g: A => B): A => C =
+    a => f(g(a))
+
+  def andThen[A, B, C](f: A => B, g: B => C): A => C =
+    a => g(f(a))
+
 }
