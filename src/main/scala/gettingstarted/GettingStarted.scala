@@ -1,9 +1,11 @@
 package gettingstarted
 
+import scala.annotation.tailrec
+
 object GettingStarted extends App {
 
   def fib(n: Int): Int = {
-    @annotation.tailrec
+    @tailrec
     def rec(n: Int, prev: Int, cur: Int): Int =
       if (n == 0) prev
       else rec(n - 1, cur, prev + cur)
@@ -14,7 +16,7 @@ object GettingStarted extends App {
   println(fib(10))
 
   def isSorted[A](as: Array[A], gt: (A, A) => Boolean): Boolean = {
-    @annotation.tailrec
+    @tailrec
     def go(n: Int): Boolean =
       if (as.length - 1 <= n) true
       else if (gt(as(n), as(n + 1))) false
