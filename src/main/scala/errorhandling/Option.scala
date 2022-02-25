@@ -32,7 +32,3 @@ sealed trait Option[+A] {
   }
 
 }
-
-//object Option {
-//
-//}
