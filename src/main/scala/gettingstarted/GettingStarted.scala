@@ -25,11 +25,19 @@ object GettingStarted extends App {
     loop(0)
   }
 
-  println(isSorted(Array("bird", "dog", "mouse"), (a: String, b: String) => a > b))
+  println(
+    isSorted(Array("bird", "dog", "mouse"), (a: String, b: String) => a > b)
+  )
   println(isSorted(Array(4, 7, 2), (a: Int, b: Int) => a < b))
 
   def curry[A, B, C](f: (A, B) => C): A => (B => C) =
     a => b => f(a, b)
+
+  def adder(a: Int)(b: Int): Int = a + b
+  val add1 = adder(1) _
+  val add4 = adder(4) _
+  println(add1(3)) // 1 + 3 = 4
+  println(add4(6)) // 4 + 6 = 10
 
   def curry2[A, B, C, D](f: (A, B, C) => D): A => B => C => D =
     a => b => c => f(a, b, c)
