@@ -1,6 +1,6 @@
 package laziness
 
-import laziness.Stream.cons
+import laziness.Stream.{cons, empty}
 
 import scala.annotation.tailrec
 
@@ -21,7 +21,7 @@ trait Stream[+A] {
   // 解答一行削れそうな気がする
   def take(n: Int): Stream[A] = this match {
     case Cons(h, t) if 1 <= n => cons(h(), t().take(n - 1))
-    case _                    => Empty
+    case _                    => empty
   }
 
 //  n = 2: Cons(t: => Stream[A]).drop(2 - 1)
@@ -33,18 +33,87 @@ trait Stream[+A] {
     case _                    => this
   }
 
-//  最初takeWhileのつもりで書いたけど、これは多分やってることfilterだ。解答見て読み違えてることに気づいた。
-  def filter(p: A => Boolean): Stream[A] = this match {
-    case Cons(h, t) =>
-      if (p(h())) cons(h(), t().takeWhile(p))
-      else t().takeWhile(p)
-    case _ => this
-  }
+//  最初takeWhileのつもりで書いたけど、これは多分やってることfilter。解答見て読み違えてることに気づいた。
+//  def takeWhile(p: A => Boolean): Stream[A] = this match {
+//    case Cons(h, t) =>
+//      if (p(h())) cons(h(), t().takeWhile(p))
+//      else t().takeWhile(p)
+//    case _ => this
+//  }
 
   def takeWhile(p: A => Boolean): Stream[A] = this match {
     case Cons(h, t) if p(h()) => cons(h(), t().takeWhile(p))
-    case _                    => Empty
+    case _                    => empty
   }
+
+  def foldRight[B](z: => B)(f: (A, => B) => B): B = this match {
+//  def foldRight[B](z: => B)(f: (A, B) => B): B = this match { これで書くとStream全てを評価することになる
+    case Cons(h, t) => f(h(), t().foldRight(z)(f))
+    case _          => z
+  }
+
+  def forAll(p: A => Boolean): Boolean = foldRight(true)((a, b) => p(a) && b)
+
+  def takeWhileViaFoldRight(p: A => Boolean): Stream[A] =
+    foldRight(empty[A])((h, t) => if (p(h)) cons(h, t) else empty)
+
+//  def headOption: Option[A] = foldRight(Option[A])((h, _) => Option(h))
+  def headOption: Option[A] = foldRight(None: Option[A])((h, _) => Some(h))
+
+  def map[B](p: A => B): Stream[B] =
+    foldRight(empty[B])((h, t) => cons(p(h), t))
+
+  def filter(p: A => Boolean): Stream[A] =
+    foldRight(empty[A])((h, t) => if (p(h)) cons(h, t) else t)
+
+  // Covariant type A occurs in contravariant position in type Stream[A] of value p
+//  def append(p: => Stream[A]): Stream[A] =
+//    foldRight(this)((h, t) => cons(cons(this, h), t))
+  def append[B >: A](s: => Stream[B]): Stream[B] =
+    foldRight(s)((h, t) => cons(h, t))
+
+  // Type mismatch. Required: Stream[B], found: Stream[Any]
+//  def flatMap[B](p: A => B): Stream[B] =
+//    foldRight(empty[B])((h, t) => cons(h, t.flatMap(p)))
+  def flatMap[B](f: A => Stream[B]): Stream[B] =
+    foldRight(empty[B])((h, t) => f(h).append(t))
+
+//  def constant[A](a: A): Stream[A] = cons(a, constant(a))
+  def constant[A](a: A): Stream[A] = {
+    lazy val tail: Stream[A] = Cons(() => a, () => tail)
+    tail
+  }
+
+  def from(n: Int): Stream[Int] = cons(n, from(n + 1))
+
+//  def fibs(a: Int, b: Int): Stream[Int] = this match {
+//    case Cons(h, t) => this.append(a + b)
+//    case Empty      => cons(0, cons(1, fibs(0, 1)))
+//  }
+  val fibs = {
+    def go(f0: Int, f1: Int): Stream[Int] = cons(f0, go(f1, f0 + f1))
+    go(0, 1)
+  }
+
+//  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = this match {
+//    case Cons(h, t) => if (f(z)) cons(h, t.unfold(z)(f)) else cons(h, t)
+//    case _          => empty
+//  }
+  def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = f(z) match {
+    case Some((a, s)) => cons(a, unfold(s)(f))
+    case None         => Empty
+  }
+
+//  val fibsViaUnfold = {
+//    def go(c: Stream[Int]): Stream[Int] =
+//      unfold(c)(_ => Option(Int, Stream[Int]))
+//    go(cons(0, cons(1, empty)))
+//  }
+//  val fibsViaUnfold = unfold((0, 1)) { case (f0, f1) =>
+//    Some((f0, (f1, f0 + f1)))
+//  }
+  val fibsViaUnfold =
+    unfold((0, 1))(p => p match { case (f0, f1) => Some((f0, (f1, f0 + f1))) })
 
 }
 case object Empty extends Stream[Nothing]
@@ -57,33 +126,35 @@ object Stream extends App {
     Cons(() => head, () => tail)
   }
 
+  def empty[A]: Stream[A] = Empty
+
+  def if2[A](cond: Boolean, onTrue: () => A, onFalse: () => A): A =
+    if (cond) onTrue() else onFalse()
+//  if2(1 < 2, () => println("a"), () => println("b"))
+
+  def if3[A](cond: Boolean, onTrue: => A, onFalse: => A): A =
+    if (cond) onTrue else onFalse
+//  if3(1 < 2, () => println("a"), () => println("b"))
+
   def maybeTwice(b: Boolean, i: => Int) = if (b) i + i else 0
 //  val x = maybeTwice(true, { println("hi"); 1 + 41 })
 //  println(x)
 
   def maybeTwice2(b: Boolean, i: => Int) = {
 //    val j = i
-//    lazy val j = i
-    if (b) i + i else 0
-//    if (b) j + j else 0
+    lazy val j = i
+    //    if (b) i + i else 0
+    if (b) j + j else 0
   }
-  val x2 = maybeTwice2(true, { println("hi"); 1 + 41 })
-  println(x2)
+//  val x2 = maybeTwice2(true, { println("hi"); 1 + 41 })
+//  println(x2)
 
   def p[A](v: A): A = {
     println(v)
     v
   }
-  val s = cons(p(1), cons(p(2), cons(p(3), Empty)))
-//  println(s.toList)
-  val t = cons(p(1), cons(p(2), cons(p(3), Empty)))
-//  println(t.take(2))
-//  println(t.take(2).toList)
-  val u = cons(p(1), Empty)
-//  println(u.take(4).toList)
-  val v = cons(p(1), cons(p(2), cons(p(3), Empty)))
-//  println(v.drop(2).toList)
-  val w = cons(p(1), cons(p(2), cons(p(3), Empty)))
-//  println(w.takeWhile(_ <= 2).toList)
+  val s = cons(p(1), cons(p(2), cons(p(3), empty)))
+  val t = cons(p(4), cons(p(5), cons(p(6), empty)))
+  println(s.forAll(_ < 4))
 
 }
